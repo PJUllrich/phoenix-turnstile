@@ -9,5 +9,5 @@ defmodule Turnstile.Behaviour do
   @callback remove(map(), binary()) :: map()
 
   @callback verify(%{binary() => binary()}) :: {:ok, term()} | {:error, term()}
-  @callback verify(%{binary() => binary()}, tuple() | binary()) :: {:ok, term()} | {:error, term()}
+  @callback verify(%{binary() => binary()}, keyword() | tuple() | binary()) :: {:ok, term()} | {:error, term()}
 end

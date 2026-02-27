@@ -125,8 +125,28 @@ defmodule Turnstile do
   security when running the verification, but is optional. Returns `{:ok, response}` if the
   verification succeeded, or `{:error, reason}` if the verification failed.
   """
-  def verify(%{"cf-turnstile-response" => turnstile_response}, remoteip \\ nil) do
-    body = encode_body!(turnstile_response, remoteip)
+  def verify(params, opts \\ [])
+  def verify(params, _remoteip = nil), do: do_verify(params, [])
+  def verify(params, remoteip) when is_tuple(remoteip) or is_binary(remoteip), do: do_verify(params, remoteip: remoteip)
+
+  def verify(params, remoteip_or_opts) when is_list(remoteip_or_opts) do
+    opts =
+      if Keyword.keyword?(remoteip_or_opts) do
+        remoteip_or_opts
+      else
+        [remoteip: remoteip_or_opts]
+      end
+
+    do_verify(params, opts)
+  end
+
+  def verify(params, opts), do: do_verify(params, opts)
+
+  defp do_verify(%{"cf-turnstile-response" => turnstile_response}, opts) do
+    remoteip = Keyword.get(opts, :remoteip)
+    secret_key = Keyword.get(opts, :secret_key, secret_key())
+
+    body = encode_body!(turnstile_response, remoteip, secret_key)
     headers = [{to_charlist("accept"), to_charlist("application/json")}]
     request = {to_charlist(@verify_url), headers, to_charlist("application/json"), body}
 
@@ -148,16 +168,17 @@ defmodule Turnstile do
     end
   end
 
-  defp encode_body!(response, remoteip) when is_tuple(remoteip) do
-    encode_body!(response, :inet_parse.ntoa(remoteip) |> to_string())
+  defp encode_body!(response, remoteip, secret_key) when is_tuple(remoteip) do
+    remoteip = remoteip |> :inet_parse.ntoa() |> to_string()
+    encode_body!(response, remoteip, secret_key)
   end
 
-  defp encode_body!(response, remoteip) when is_list(remoteip) do
-    encode_body!(response, to_string(remoteip))
+  defp encode_body!(response, remoteip, secret_key) when is_list(remoteip) do
+    encode_body!(response, to_string(remoteip), secret_key)
   end
 
-  defp encode_body!(response, remoteip) do
-    %{response: response, remoteip: remoteip, secret: secret_key()}
+  defp encode_body!(response, remoteip, secret_key) do
+    %{response: response, remoteip: remoteip, secret: secret_key}
     |> Enum.reject(fn {_, v} -> is_nil(v) end)
     |> Enum.into(%{})
     |> Jason.encode!()

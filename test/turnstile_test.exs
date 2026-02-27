@@ -109,6 +109,29 @@ defmodule TurnstileTest do
       end
     end
 
+    test "should return successful status with secret_key option" do
+      use_cassette "turnstile_success", custom: true do
+        assert Turnstile.verify(%{"cf-turnstile-response" => "foo"}, secret_key: "some_secret_key") ==
+                 {:ok, %{"success" => true}}
+      end
+    end
+
+    test "should return successful status with secret_key and remoteip options" do
+      use_cassette "turnstile_success", custom: true do
+        assert Turnstile.verify(%{"cf-turnstile-response" => "foo"},
+                 secret_key: "some_secret_key",
+                 remoteip: {127, 0, 0, 1}
+               ) == {:ok, %{"success" => true}}
+      end
+    end
+
+    test "should return unsuccessful status with secret_key option" do
+      use_cassette "turnstile_failure", custom: true do
+        assert Turnstile.verify(%{"cf-turnstile-response" => "foo"}, secret_key: "some_secret_key") ==
+                 {:error, %{"success" => false}}
+      end
+    end
+
     @tag :external
     test "should return a successful response" do
       assert {:ok, res} = Turnstile.verify(%{"cf-turnstile-response" => "abc123"})
